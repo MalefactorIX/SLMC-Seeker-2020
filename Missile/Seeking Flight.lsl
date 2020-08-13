@@ -5,7 +5,7 @@ boom(vector pos)
     //Add extra shit here
     llDie();
 }
-float velocity=100.0;
+float velocity=100.0;//How fast the rocket goes as it tracks
 key target;
 lock()
 {
