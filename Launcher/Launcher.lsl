@@ -5,9 +5,16 @@ string lock;
 fire()
 {
     rotation rot=llGetCameraRot();
+    vector pos=llGetCameraPos();
+    list ray=llCastRay(pos,pos+<3.0,0.0,0.0>*llGetCameraRot(),[RC_REJECT_TYPES,RC_REJECT_AGENTS]);
+    if(llList2Vector(ray,1))
+    {
+        llOwnerSay("Sight obstructed");
+        return;
+    }
     llSetObjectDesc(lock);
     llTriggerSound("1545f0c0-24c9-c87b-5590-203acbbe34c8",1.0);
-    llRezObject("[Spectra]Rocket",llGetCameraPos()+<5.0,0.0,0.0>*rot,<80.0,0.0,0.0>*rot,<0.00000, 0.70711, 0.00000, 0.70711>*rot,1);
+    llRezObject("[Spectra]Rocket",pos+<5.0,0.0,0.0>*rot,<80.0,0.0,0.0>*rot,<0.00000, 0.70711, 0.00000, 0.70711>*rot,1);
     lock="";
     llPlaySound("1137030f-9aa0-b5db-c8c5-9c47d3c8c885",1.0);
     llResetTime();
@@ -15,17 +22,55 @@ fire()
 beam()
 {
     vector pos=llGetCameraPos();
-    list ray=llCastRay(pos,pos+<1000.0,0.0,0.0>*llGetCameraRot(),[RC_DATA_FLAGS,RC_GET_ROOT_KEY,RC_REJECT_TYPES,RC_REJECT_AGENTS,RC_DETECT_PHANTOM,1]);
-    //Note to self: Update with multi-hit support so it doesn't get eaten by sim surroundings.
+    list ray=llCastRay(pos,pos+<1000.0,0.0,0.0>*llGetCameraRot(),[RC_DATA_FLAGS,RC_GET_ROOT_KEY,RC_REJECT_TYPES,RC_REJECT_AGENTS]);
     key hit=llList2Key(ray,0);
-    string desc=llList2String(llGetObjectDetails(hit,[OBJECT_DESC]),0);
-    if(llGetSubString(desc,0,1)=="v."||llGetSubString(desc,0,5)=="LBA.v.")
+    if(hit!=lock)
     {
-        if(llList2String(llCSV2List(desc),-1)=="AIR")lock=hit;
+        string desc=llList2String(llGetObjectDetails(hit,[OBJECT_DESC]),0);
+        if(llGetSubString(desc,0,1)=="v."||llGetSubString(desc,0,5)=="LBA.v.")
+        {
+            if(llList2String(llCSV2List(desc),-1)=="AIR")
+            {
+                llRegionSayTo(llGetOwnerKey(lock),-1567,"break");
+                llParticleSystem([PSYS_PART_FLAGS,( 0
+                 |PSYS_PART_INTERP_COLOR_MASK
+                 |PSYS_PART_INTERP_SCALE_MASK
+                 |PSYS_PART_RIBBON_MASK
+                 |PSYS_PART_EMISSIVE_MASK
+                 |PSYS_PART_TARGET_POS_MASK ),
+                 PSYS_SRC_PATTERN,PSYS_SRC_PATTERN_DROP,
+                 PSYS_PART_BLEND_FUNC_SOURCE,PSYS_PART_BF_SOURCE_ALPHA,
+                 PSYS_PART_BLEND_FUNC_DEST,PSYS_PART_BF_ONE_MINUS_SOURCE_ALPHA,
+                 PSYS_PART_START_ALPHA,1.0,
+                 PSYS_PART_END_ALPHA,1.0,
+                 PSYS_PART_START_COLOR, <1.0,0.0,0.0>,
+                 PSYS_PART_END_COLOR,<1.0,0.0,0.0>,
+                 PSYS_PART_START_GLOW,0.2,
+                 PSYS_PART_END_GLOW,0.2,
+                 PSYS_PART_START_SCALE,<0.8,4.0,2.0>,
+                 PSYS_PART_END_SCALE,<0.8,4.1,2.0>,
+                 PSYS_PART_MAX_AGE,0.2,
+                 PSYS_SRC_ACCEL,<0.0,0.0,0.0>,
+                 PSYS_SRC_BURST_PART_COUNT,1,
+                 PSYS_SRC_BURST_RADIUS,0.1,
+                 PSYS_SRC_BURST_RATE,0.09,
+                 PSYS_SRC_BURST_SPEED_MIN,200.0,
+                 PSYS_SRC_BURST_SPEED_MAX,200.0,
+                 PSYS_SRC_ANGLE_BEGIN,0.0,
+                 PSYS_SRC_ANGLE_END,0.0,
+                 PSYS_SRC_OMEGA,<0.0,0.0,0.0>,
+                 PSYS_SRC_MAX_AGE, 2.0,
+                 PSYS_SRC_TEXTURE, "ef728e1e-4122-560e-7dcf-3e9525f8068d",
+                 PSYS_SRC_TARGET_KEY,hit]);
+                lock=hit;
+                llRegionSayTo(llGetOwnerKey(hit),-1567,"lock");
+            }
+        }
     }
 }
 stop()
 {
+    llLinkParticleSystem(-1,[]);
     llStopMoveToTarget();
     trigger=0;
     llStopAnimation(locka);
@@ -53,7 +98,7 @@ default
     {
         o=llGetOwner();
         llListen(0,"",o,"");
-        llListen(9001,"",o,"");
+        llListen(9003,"",o,"");
         llRequestPermissions(o,0x414);
     }
     listen(integer chan, string name, key id, string message)
@@ -131,7 +176,11 @@ default
             stop();
         }
         else if(h&CONTROL_DOWN&&trigger)beam();
-        else if(c&&trigger)stop();
+        else if(c&&trigger)
+        {
+            llRegionSayTo(llGetOwnerKey(lock),-1567,"break");
+            stop();
+        }
     }
     timer()
     {
